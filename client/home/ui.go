@@ -123,7 +123,7 @@ func (h *Home) bindRendererCallbacks() {
 
 		for i, petal := range h.petalAnimation.Petals {
 			petal.X += float32(dt) * (25 + 75*petal.Seed)
-			petal.Y += float32(math.Sin(float64(h.petalAnimation.time*0.5+float64(petal.Seed)*10)) * 0.025)
+			petal.Y += float32(dt) * float32(math.Sin(h.petalAnimation.time*0.5+float64(petal.Seed)*10)) * 1.5
 
 			if petal.X-petal.S > h.petalAnimation.Width {
 				if len(h.petalAnimation.Petals) > numPetals {

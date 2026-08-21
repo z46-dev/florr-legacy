@@ -17,6 +17,9 @@ coverage.*
 *.coverprofile
 profile.cov
 
+# Regenerable 64 MiB reverse-engineering runtime snapshots
+static.florr.io/analysis/generated/*.memory.bin
+
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
@@ -26,7 +29,12 @@ go.work.sum
 
 # env file
 .env
+config.toml
+*.db
 
 # Editor/IDE
 # .idea/
 # .vscode/
+
+static.florr.io
+.tmp

@@ -1,0 +1,5 @@
+{
+    "go.testFlags": ["-count=1"],
+    "go.testTimeout": "10m",
+    "liveServer.settings.root": "/static.florr.io"
+}

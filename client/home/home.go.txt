@@ -1,0 +1,324 @@
+// Package home implements the retained Spiffy home and spawn screen.
+package home
+
+import (
+	"fmt"
+
+	"github.com/gogpu/gogpu"
+	"github.com/gogpu/gpucontext"
+	"github.com/gogpu/wgpu"
+	"github.com/z46-dev/florr-legacy/client/render"
+	"github.com/z46-dev/florr-legacy/shared/configs"
+	"github.com/z46-dev/gctx2d"
+	"github.com/z46-dev/spiffy"
+)
+
+var (
+	archivedGreen        gctx2d.Color = gctx2d.RGBA(54.0/255.0, 168.0/255.0, 92.0/255.0, 1.0)
+	archivedButtonBlue   gctx2d.Color = gctx2d.RGBA(90.0/255.0, 159.0/255.0, 219.0/255.0, 1)
+	archivedButtonBorder gctx2d.Color = gctx2d.RGBA(73.0/255.0, 129.0/255.0, 177.0/255.0, 1)
+	archivedDiscord      gctx2d.Color = gctx2d.RGBA(114.0/255.0, 137.0/255.0, 218.0/255.0, 1)
+	archivedReddit       gctx2d.Color = gctx2d.RGBA(1, 69.0/255.0, 0, 1)
+)
+
+type Home struct {
+	RenderState                        *render.RendererState
+	UI                                 *spiffy.UserInterface
+	title, howTo, move, attack, defend *spiffy.Label
+	prompt, submitHint, errorLabel     *spiffy.Label
+	nickname                           *spiffy.TextInput
+	settings, petals, mobs, changelog  *spiffy.Button
+	reddit, discord                    *spiffy.Button
+	modalBlocker                       *spiffy.Button
+	modalPanel                         *spiffy.Panel
+	modalTitle                         *spiffy.Label
+	modalLines                         []*spiffy.Label
+	modalClose                         *spiffy.Button
+	onPlay                             func(string) error
+	backgroundTime                     float64
+	ownedPetals                        []configs.PetalID
+}
+
+// New constructs the archived home screen and its renderer state.
+func New(renderer *render.Renderer, onPlay func(string) error) (home *Home, err error) {
+	if renderer == nil {
+		err = fmt.Errorf("renderer is nil")
+		return
+	}
+	if onPlay == nil {
+		err = fmt.Errorf("play callback is nil")
+		return
+	}
+	home = &Home{onPlay: onPlay, ownedPetals: []configs.PetalID{1, 1, 1, 1, 1}}
+	if home.RenderState, err = renderer.NewState(); err != nil {
+		home = nil
+		return
+	}
+	home.buildUI()
+	home.bindRendererCallbacks()
+	home.layoutUI(1280, 720)
+	return
+}
+
+// SetOwnedPetals changes the catalog used by the archived moving backdrop.
+func (h *Home) SetOwnedPetals(petals []configs.PetalID) {
+	h.ownedPetals = append(h.ownedPetals[:0], petals...)
+}
+
+// Resume restores the reusable home state after a completed local session.
+func (h *Home) Resume() {
+	h.nickname.Disabled = false
+	h.errorLabel.Text = ""
+	h.nickname.Focus()
+}
+
+// buildUI creates the archived screen controls through Spiffy.
+func (h *Home) buildUI() {
+	h.UI = spiffy.New(h.RenderState.Ctx)
+	h.UI.SetClipboard(h.RenderState.Renderer.App)
+	h.title = h.newCenteredLabel("florr.io", 56)
+	h.howTo = h.newCenteredLabel("How to play", 21)
+	h.move = h.newCenteredLabel("Use mouse to move", 11.2)
+	h.attack = h.newCenteredLabel("Left click to attack", 11.2)
+	h.defend = h.newCenteredLabel("Right click to defend", 11.2)
+	h.prompt = h.newCenteredLabel("This pretty little flower is called...", 14)
+	h.submitHint = h.newCenteredLabel("(press enter to spawn)", 9.8)
+	h.errorLabel = h.newCenteredLabel("", 9.8)
+	h.errorLabel.TextStyle.Color = gctx2d.RGBA(.75, .08, .08, 1)
+
+	h.nickname = h.UI.NewTextInput(spiffy.Rect{}, "Nickname", nil)
+	h.nickname.SetMaxLength(13)
+	h.nickname.Style.FillColor = gctx2d.RGBA(238.0/255.0, 238.0/255.0, 238.0/255.0, 1)
+	h.nickname.Style.BorderColor = gctx2d.ColorBlack
+	h.nickname.Style.FocusBorderColor = gctx2d.ColorBlack
+	h.nickname.Style.BorderWidth = 3.5
+	h.nickname.Style.BorderRadius = 0
+	h.nickname.TextStyle.FontSize = 18
+	h.nickname.TextStyle.Font = h.RenderState.Renderer.LegacyFont
+	h.nickname.TextStyle.Align = gctx2d.TextAlignCenter
+	h.nickname.Padding = spiffy.Insets{Left: 8, Right: 8}
+	h.nickname.OnSubmit = func(_ *spiffy.TextInput, _ string) { h.playGame() }
+
+	h.settings = h.newArchiveButton("Settings", archivedButtonBlue, archivedButtonBorder, func(_ *spiffy.Button) { h.openSettings() })
+	h.petals = h.newArchiveButton("Petals", archivedButtonBlue, archivedButtonBorder, func(_ *spiffy.Button) { h.openPetals() })
+	h.mobs = h.newArchiveButton("Mobs", archivedButtonBlue, archivedButtonBorder, func(_ *spiffy.Button) { h.openMobs() })
+	h.changelog = h.newArchiveButton("Changelog", archivedButtonBlue, archivedButtonBorder, func(_ *spiffy.Button) {
+		h.openMenu("Changelog", []string{"Legacy build: July 9, 2022", "Preservation client under active reconstruction"})
+	})
+	h.reddit = h.newArchiveButton("r", archivedReddit, gctx2d.RGBA(207.0/255.0, 56.0/255.0, 0, 1), nil)
+	h.discord = h.newArchiveButton("⌁", archivedDiscord, gctx2d.RGBA(92.0/255.0, 111.0/255.0, 177.0/255.0, 1), nil)
+	h.buildModal()
+}
+
+// newCenteredLabel creates the archived white centered text style.
+func (h *Home) newCenteredLabel(text string, size float64) (label *spiffy.Label) {
+	label = h.UI.NewLabel(spiffy.Rect{}, text)
+	label.TextStyle.Color = gctx2d.ColorWhite
+	label.TextStyle.Font = h.RenderState.Renderer.LegacyFont
+	label.TextStyle.FontSize = size
+	// label.TextStyle.Weight = weight
+	label.TextStyle.Align = gctx2d.TextAlignCenter
+	label.TextStyle.Baseline = gctx2d.TextBaselineMiddle
+	label.TextStyle.BorderColor = gctx2d.ColorBlack
+	label.TextStyle.BorderWidth = float32(size) / 15
+	return
+}
+
+// newArchiveButton creates the measured blue or social-button style.
+func (h *Home) newArchiveButton(text string, fill, border gctx2d.Color, onClick func(*spiffy.Button)) (button *spiffy.Button) {
+	button = h.UI.NewButton(spiffy.Rect{}, text, onClick)
+	button.Style.FillColor = fill
+	button.Style.BorderColor = border
+	button.Style.BorderWidth = 3.5
+	button.Style.BorderRadius = 3.5
+	button.Style.Click.Type = spiffy.ClickAnimationNone
+	button.Style.HoverMixAmount = .1
+	button.Style.PressMixAmount = .18
+	button.TextStyle.Color = gctx2d.ColorWhite
+	button.TextStyle.Font = h.RenderState.Renderer.LegacyFont
+	button.TextStyle.FontSize = 11.2
+	button.TextStyle.BorderColor = gctx2d.ColorBlack
+	button.TextStyle.BorderWidth = 1
+	return
+}
+
+// buildModal creates the shared retained surface used by the four archive menus.
+func (h *Home) buildModal() {
+	h.modalBlocker = h.UI.NewButton(spiffy.Rect{}, "", nil)
+	h.modalBlocker.Style.FillColor = gctx2d.RGBA(0, 0, 0, .25)
+	h.modalBlocker.Style.BorderWidth = 0
+	h.modalBlocker.Style.Click.Type = spiffy.ClickAnimationNone
+	h.modalPanel = h.UI.NewPanel(spiffy.Rect{})
+	h.modalPanel.Style.FillColor = archivedButtonBlue
+	h.modalPanel.Style.BorderColor = archivedButtonBorder
+	h.modalPanel.Style.BorderWidth = 4
+	h.modalPanel.Style.BorderRadius = 7
+	h.modalTitle = h.newCenteredLabel("", 25)
+	for range 12 {
+		var line *spiffy.Label = h.newCenteredLabel("", 14)
+		h.modalLines = append(h.modalLines, line)
+	}
+	h.modalClose = h.newArchiveButton("Close", archivedButtonBlue, archivedButtonBorder, func(_ *spiffy.Button) { h.setModalVisible(false) })
+	h.setModalVisible(false)
+}
+
+// openMenu fills and opens the shared menu surface.
+func (h *Home) openMenu(title string, lines []string) {
+	h.modalTitle.Text = title
+	for index, label := range h.modalLines {
+		label.Text = ""
+		if index < len(lines) {
+			label.Text = lines[index]
+		}
+	}
+	h.setModalVisible(true)
+}
+
+// openSettings exposes the controls confirmed by the archived client strings.
+func (h *Home) openSettings() {
+	h.openMenu("Settings", []string{"Mouse movement", "Left click / Space: attack", "Right click / Shift: defend", "Touch, fixed joystick, and gamepad settings pending"})
+}
+
+// openPetals displays the recovered petal ownership catalog.
+func (h *Home) openPetals() {
+	var lines []string
+	for _, definition := range configs.Petals {
+		if definition.ID == 0 {
+			continue
+		}
+		lines = append(lines, fmt.Sprintf("%s — %s", definition.Meta.Name, configs.Rarities[definition.Meta.Rarity].Name))
+		if len(lines) == len(h.modalLines) {
+			break
+		}
+	}
+	h.openMenu("Petals", lines)
+}
+
+// openMobs displays the recovered mob gallery catalog.
+func (h *Home) openMobs() {
+	var lines []string
+	for _, definition := range configs.Mobs {
+		lines = append(lines, fmt.Sprintf("%s — %s", definition.Meta.Name, configs.Rarities[definition.Meta.Rarity].Name))
+		if len(lines) == len(h.modalLines) {
+			break
+		}
+	}
+	h.openMenu("Mobs", lines)
+}
+
+// setModalVisible switches every shared menu widget atomically.
+func (h *Home) setModalVisible(visible bool) {
+	h.modalBlocker.Visible = visible
+	h.modalPanel.Visible = visible
+	h.modalTitle.Visible = visible
+	h.modalClose.Visible = visible
+	for _, line := range h.modalLines {
+		line.Visible = visible
+	}
+}
+
+// playGame validates the nickname and enters a connected game view.
+func (h *Home) playGame() {
+	var nickname string = h.nickname.Value
+	if nickname == "" {
+		nickname = "Flower"
+	}
+	h.nickname.Disabled = true
+	h.errorLabel.Text = ""
+	var err error
+	if err = h.onPlay(nickname); err != nil {
+		h.errorLabel.Text = err.Error()
+		h.nickname.Disabled = false
+	}
+}
+
+// layoutUI positions controls using the archived 1280x720 geometry.
+func (h *Home) layoutUI(width, height int) {
+	var w, screenHeight float32 = float32(width), float32(height)
+	h.title.Bounds = spiffy.Rect{X: 0, Y: 116, Width: w, Height: 108}
+	h.howTo.Bounds = spiffy.Rect{X: 0, Y: 408, Width: w, Height: 40}
+	h.move.Bounds = spiffy.Rect{X: 0, Y: 442, Width: w, Height: 20}
+	h.attack.Bounds = spiffy.Rect{X: 0, Y: 458, Width: w, Height: 20}
+	h.defend.Bounds = spiffy.Rect{X: 0, Y: 474, Width: w, Height: 20}
+	h.prompt.Bounds = spiffy.Rect{X: 0, Y: 276, Width: w, Height: 28}
+	h.nickname.Bounds = spiffy.Rect{X: w*.5 - 140, Y: 310, Width: 280, Height: 35}
+	h.submitHint.Bounds = spiffy.Rect{X: 0, Y: 352, Width: w, Height: 22}
+	h.errorLabel.Bounds = spiffy.Rect{X: 0, Y: 376, Width: w, Height: 20}
+
+	var bottomY float32 = screenHeight - 31.2
+	h.settings.Bounds = spiffy.Rect{X: 7, Y: bottomY, Width: 70, Height: 24.5}
+	h.petals.Bounds = spiffy.Rect{X: 84, Y: bottomY, Width: 70, Height: 24.5}
+	h.mobs.Bounds = spiffy.Rect{X: 161, Y: bottomY, Width: 70, Height: 24.5}
+	h.changelog.Bounds = spiffy.Rect{X: 238, Y: bottomY, Width: 84, Height: 24.5}
+	h.reddit.Bounds = spiffy.Rect{X: w - 77, Y: 14, Width: 28, Height: 28}
+	h.discord.Bounds = spiffy.Rect{X: w - 42, Y: 14, Width: 28, Height: 28}
+	h.modalBlocker.Bounds = spiffy.Rect{Width: w, Height: screenHeight}
+	var modalWidth float32 = min(520, w-40)
+	var modalHeight float32 = min(460, screenHeight-40)
+	var modalX float32 = (w - modalWidth) * .5
+	var modalY float32 = (screenHeight - modalHeight) * .5
+	h.modalPanel.Bounds = spiffy.Rect{X: modalX, Y: modalY, Width: modalWidth, Height: modalHeight}
+	h.modalTitle.Bounds = spiffy.Rect{X: modalX + 20, Y: modalY + 18, Width: modalWidth - 40, Height: 42}
+	for index, label := range h.modalLines {
+		label.Bounds = spiffy.Rect{X: modalX + 24, Y: modalY + 70 + float32(index)*25, Width: modalWidth - 48, Height: 22}
+	}
+	h.modalClose.Bounds = spiffy.Rect{X: modalX + modalWidth*.5 - 45, Y: modalY + modalHeight - 48, Width: 90, Height: 30}
+	h.UI.SetWindowDragArea(spiffy.Rect{Width: w, Height: screenHeight})
+}
+
+// bindRendererCallbacks routes application events into the active Spiffy UI.
+func (h *Home) bindRendererCallbacks() {
+	h.RenderState.Cleanup = func() { h.UI.Clear() }
+	h.RenderState.OnUpdate = func(dt float64) { h.backgroundTime += dt }
+	h.RenderState.Draw = func(dc *gogpu.Context) {
+		var width, height int = dc.Size()
+		var surface *wgpu.TextureView = dc.SurfaceView()
+		if surface == nil {
+			return
+		}
+		h.RenderState.Ctx.Begin(width, height)
+		h.drawBackground(h.RenderState.Ctx, float32(width), float32(height))
+		h.UI.DrawTo(h.RenderState.Ctx)
+		var _ error = h.RenderState.Ctx.Flush(surface, nil)
+	}
+	h.RenderState.OnMouseMove = func(x, y float64) { h.UI.OnMouseMove(x, y) }
+	h.RenderState.OnMousePress = func(button gpucontext.MouseButton, x, y float64) { h.UI.OnMousePress(button, x, y) }
+	h.RenderState.OnMouseRelease = func(button gpucontext.MouseButton, x, y float64) { h.UI.OnMouseRelease(button, x, y) }
+	h.RenderState.OnScroll = func(deltaX, deltaY float64) { h.UI.OnScroll(deltaX, deltaY) }
+	h.RenderState.OnKeyPress = func(key gpucontext.Key, mods gpucontext.Modifiers) { h.UI.OnKeyPress(key, mods) }
+	h.RenderState.OnKeyRelease = func(key gpucontext.Key, mods gpucontext.Modifiers) { h.UI.OnKeyRelease(key, mods) }
+	h.RenderState.OnTextInput = func(text string) { h.UI.OnTextInput(text) }
+	h.RenderState.OnResize = func(width, height int) { h.layoutUI(width, height) }
+}
+
+// drawBackground draws the archived green field and screenshot-measured particles.
+func (h *Home) drawBackground(ctx *gctx2d.Context, width, height float32) {
+	ctx.SetFillStyle(archivedGreen)
+	ctx.BeginPath()
+	ctx.Rect(0, 0, width, height)
+	ctx.Fill()
+	// for index, sample := range archivedBackdropSamples {
+	// 	if len(h.ownedPetals) == 0 {
+	// 		break
+	// 	}
+	// 	// Successive archived frames show owned Basic petals moving northeast;
+	// 	// horizontal speed scales with their rendered radius.
+	// 	var x float32 = sample.X*width + sample.Radius*10.7*float32(h.backgroundTime)
+	// 	var y float32 = sample.Y*height - 16*float32(h.backgroundTime)
+	// 	var margin float32 = sample.Radius + 4
+	// 	x = float32(math.Mod(float64(x+margin), float64(width+margin*2))) - margin
+	// 	y = float32(math.Mod(float64(y+margin+height+margin*2), float64(height+margin*2))) - margin
+	// 	var id configs.PetalID = h.ownedPetals[index%len(h.ownedPetals)]
+	// 	gameview.DrawPetalIcon(ctx, id, x, y, sample.Radius/10)
+	// }
+}
+
+// strokeText draws only the outline over already-filled Spiffy text.
+func (h *Home) strokeText(ctx *gctx2d.Context, text string, bounds spiffy.Rect, style spiffy.TextStyle) {
+	ctx.SetStrokeStyle(gctx2d.ColorBlack)
+	ctx.SetLineWidth(max(2, float32(style.FontSize)*.065))
+	var _ error = ctx.SetFont(style.FontSize, style.Font, style.Weight)
+	ctx.SetTextAlign(gctx2d.TextAlignCenter)
+	ctx.SetTextBaseline(gctx2d.TextBaselineMiddle)
+	ctx.StrokeText(text, bounds.X+bounds.Width*.5, bounds.Y+bounds.Height*.5)
+}

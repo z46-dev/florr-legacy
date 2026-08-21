@@ -1,0 +1,88 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    name: Go repository
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.mod
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Build programs without warnings
+        shell: bash
+        run: |
+          set -o pipefail
+          output_file="$(mktemp)"
+          go build ./... 2>&1 | tee "$output_file"
+          if grep -Eiq '(^|[^[:alpha:]])warn(ing)?([^[:alpha:]]|$)' "$output_file"; then
+            echo "Go build emitted a warning."
+            exit 1
+          fi
+
+      - name: Install gopls
+        run: go install golang.org/x/tools/gopls@latest
+
+      - name: Run gopls quality checks
+        shell: bash
+        run: |
+          set -o pipefail
+          diagnostics_file="$(mktemp)"
+          find . -path ./.git -prune -o -type f -name '*.go' -print0 |
+            xargs -0 -r gopls check |
+            tee "$diagnostics_file"
+          if [[ -s "$diagnostics_file" ]]; then
+            echo "gopls reported diagnostics."
+            exit 1
+          fi
+
+      - name: Check Go formatting
+        shell: bash
+        run: |
+          files="$(find . -path ./.git -prune -o -type f -name '*.go' -print0 | xargs -0 -r gofmt -l)"
+          if [[ -n "$files" ]]; then
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Check module files
+        run: go mod tidy -diff
+
+      - name: Run tests with race detector
+        run: go test -race ./...
+
+      - name: Install govulncheck
+        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+      - name: Check vulnerabilities
+        run: govulncheck ./...
+
+      - name: Install gosec
+        run: go install github.com/securego/gosec/v2/cmd/gosec@latest
+
+      - name: Run Go security analysis
+        # Existing binary-packet narrowing, gameplay randomness, and local
+        # configured paths are tested or are not security boundaries.
+        run: gosec -exclude=G104,G115,G301,G302,G304,G306,G404 -exclude-generated ./...

@@ -18,6 +18,7 @@ const (
 type (
 	ActiveDrawFunc func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool)
 	StaticDrawFunc func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context)
+	IconDrawFunc   func(self *PetalRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context)
 	// Petal          struct {
 	// 	ID              configs.PetalID
 	// 	Active          ActiveDrawFunc
@@ -43,6 +44,10 @@ type (
 	PetalRender struct {
 		ID configs.PetalID
 		baseRender
+		IconGenerator                IconDrawFunc
+		IconCached                   *gctx2d.OffscreenCanvas
+		IconImage                    *gimage.Image
+		HomeScreenRotationMultiplier float32
 	}
 
 	MobRender struct {
@@ -89,11 +94,50 @@ func (br *baseRender) Generate(device *wgpu.Device, round bool) (err error) {
 // ===================== Petals =====================
 // ==================================================
 
-func newPetal(id configs.PetalID, active ActiveDrawFunc, static StaticDrawFunc) (p *PetalRender) {
+func newPetal(id configs.PetalID, active ActiveDrawFunc, static StaticDrawFunc, icon IconDrawFunc, rotationMultiplier float32) (p *PetalRender) {
 	p = &PetalRender{ID: id}
 	p.Active = active
 	p.StaticGenerator = static
+	p.IconGenerator = icon
+	p.HomeScreenRotationMultiplier = rotationMultiplier
 	Petals[id] = p
+	return
+}
+
+func (p *PetalRender) Generate(device *wgpu.Device, round bool) (err error) {
+	if err = p.baseRender.Generate(device, round); err != nil {
+		return
+	}
+
+	if p.IconGenerator != nil {
+		if p.IconCached, err = gctx2d.NewOffscreenCanvas(device, STATIC_CACHE_SIZE, STATIC_CACHE_SIZE); err != nil {
+			return
+		}
+
+		var ctx *gctx2d.Context
+		if ctx, err = p.IconCached.GetContext(); err != nil {
+			return
+		}
+
+		ctx.Begin(p.IconCached.Width, p.IconCached.Height)
+
+		if round {
+			ctx.SetLineCap(gctx2d.LineCapRound)
+			ctx.SetLineJoin(gctx2d.LineJoinRound)
+		} else {
+			ctx.SetLineCap(gctx2d.LineCapButt)
+			ctx.SetLineJoin(gctx2d.LineJoinBevel)
+		}
+
+		p.IconGenerator(p, p.IconCached, ctx)
+
+		if err = p.IconCached.Flush(&gputypes.Color{R: 0, G: 0, B: 0, A: 0}); err != nil {
+			return
+		}
+
+		p.IconImage = p.IconCached.Image("icon")
+	}
+
 	return
 }
 
@@ -101,7 +145,16 @@ func (p *PetalRender) Clone(id configs.PetalID) (clone *PetalRender) {
 	clone = &PetalRender{ID: id}
 	clone.Active = p.Active
 	clone.StaticGenerator = p.StaticGenerator
+	clone.IconGenerator = p.IconGenerator
+	clone.HomeScreenRotationMultiplier = p.HomeScreenRotationMultiplier
 	Petals[id] = clone
+	return
+}
+
+func (p *PetalRender) SetIconAndRotation(icon IconDrawFunc, rotationMultiplier float32) (self *PetalRender) {
+	p.IconGenerator = icon
+	p.HomeScreenRotationMultiplier = rotationMultiplier
+	self = p
 	return
 }
 
@@ -136,6 +189,7 @@ func Init(device *wgpu.Device, round bool) (err error) {
 			err = fmt.Errorf("Failed to generate petal %s[%d]: %w", configs.Petals[petal.ID].Meta.Name, petal.ID, err)
 			return
 		}
+
 	}
 
 	for _, mob := range Mobs {

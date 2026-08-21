@@ -39,7 +39,7 @@ func (h *Home) newButton(text string) (button *spiffy.Button) {
 	button.TextStyle.Font = h.RenderState.Renderer.LegacyFont
 	button.TextStyle.FontSize = 11
 	button.TextStyle.BorderColor = gctx2d.ColorBlack
-	button.TextStyle.BorderWidth = 1
+	button.TextStyle.BorderWidth = float32(button.TextStyle.FontSize) / 15
 	return
 }
 
@@ -74,9 +74,41 @@ func (h *Home) buildUI() {
 	h.tips.defend = h.newLabel("Right click to defend", 11.2)
 
 	h.menus.settings = h.newButton("Settings")
+	h.menus.settings.OnClick = func(_ *spiffy.Button) { h.toggleMenu(menuSettings) }
 	h.menus.petals = h.newButton("Petals")
+	h.menus.petals.OnClick = func(_ *spiffy.Button) { h.toggleMenu(menuPetals) }
 	h.menus.mobs = h.newButton("Mobs")
+	h.menus.mobs.OnClick = func(_ *spiffy.Button) { h.toggleMenu(menuMobs) }
 	h.menus.changelog = h.newButton("Changelog")
+	h.menus.changelog.OnClick = func(_ *spiffy.Button) { h.toggleMenu(menuChangelog) }
+
+	h.menus.keyboardMovement = h.newSetting()
+	h.menus.movementHelper = h.newSetting()
+	h.setSettingsVisible(false)
+}
+
+// newSetting creates an archived settings checkbox without wiring game behavior yet.
+func (h *Home) newSetting() (checkbox *spiffy.Checkbox) {
+	checkbox = h.UI.NewCheckbox(spiffy.Rect{}, "", false, nil)
+	checkbox.Style.FillColor = gctx2d.ColorTransparent
+	checkbox.Style.BorderColor = gctx2d.ColorTransparent
+	checkbox.Style.BorderWidth = 0
+	checkbox.Style.BorderRadius = 0
+	checkbox.UncheckedStyle = checkbox.Style
+	checkbox.UncheckedStyle.FillColor = gctx2d.RGBA(72.0/255.0, 72.0/255.0, 72.0/255.0, 1)
+	checkbox.UncheckedStyle.BorderColor = gctx2d.RGBA(55.0/255.0, 55.0/255.0, 55.0/255.0, 1)
+	checkbox.UncheckedStyle.BorderWidth = 3
+	checkbox.CheckedStyle = checkbox.Style
+	checkbox.CheckedStyle.FillColor = gctx2d.RGBA(62.0/255.0, 130.0/255.0, 181.0/255.0, 1)
+	checkbox.CheckedStyle.BorderColor = checkbox.UncheckedStyle.BorderColor
+	checkbox.CheckedStyle.BorderWidth = checkbox.UncheckedStyle.BorderWidth
+	checkbox.CheckColor = gctx2d.ColorWhite
+	checkbox.TextStyle.Color = gctx2d.ColorWhite
+	checkbox.TextStyle.Font = h.RenderState.Renderer.LegacyFont
+	checkbox.TextStyle.FontSize = 11
+	checkbox.TextStyle.BorderColor = gctx2d.ColorBlack
+	checkbox.TextStyle.BorderWidth = 1
+	return
 }
 
 func (h *Home) layoutUI(width, height float32) {
@@ -90,11 +122,16 @@ func (h *Home) layoutUI(width, height float32) {
 	h.input.submitHint.Bounds = spiffy.Rect{X: 0, Y: 352, Width: width, Height: 22}
 	h.input.errorLabel.Bounds = spiffy.Rect{X: 0, Y: 376, Width: width, Height: 20}
 
-	var bottomY float32 = height - 31.2
-	h.menus.settings.Bounds = spiffy.Rect{X: 7, Y: bottomY, Width: 70, Height: 24.5}
-	h.menus.petals.Bounds = spiffy.Rect{X: 84, Y: bottomY, Width: 70, Height: 24.5}
-	h.menus.mobs.Bounds = spiffy.Rect{X: 161, Y: bottomY, Width: 70, Height: 24.5}
-	h.menus.changelog.Bounds = spiffy.Rect{X: 238, Y: bottomY, Width: 84, Height: 24.5}
+	var bottomY float32 = height - 36
+	h.menus.settings.Bounds = spiffy.Rect{X: 7, Y: bottomY, Width: 84, Height: 29}
+	h.menus.petals.Bounds = spiffy.Rect{X: 96, Y: bottomY, Width: 84, Height: 29}
+	h.menus.mobs.Bounds = spiffy.Rect{X: 185, Y: bottomY, Width: 84, Height: 29}
+	h.menus.changelog.Bounds = spiffy.Rect{X: 274, Y: bottomY, Width: 100, Height: 29}
+
+	h.menu.Width, h.menu.Height = width, height
+	var settingsY float32 = height - 116
+	h.menus.keyboardMovement.Bounds = spiffy.Rect{X: 24, Y: settingsY - 11, Width: 26, Height: 30}
+	h.menus.movementHelper.Bounds = spiffy.Rect{X: 24, Y: settingsY + 24, Width: 26, Height: 30}
 }
 
 // bindRendererCallbacks routes application events into the active Spiffy UI.
@@ -151,14 +188,33 @@ func (h *Home) bindRendererCallbacks() {
 		h.RenderState.Ctx.SetEdgeAAMode(gctx2d.EdgeAAModeOn)
 		h.RenderState.Ctx.SetImageSmoothingMode(gctx2d.ImageSmoothingModeLinear)
 		h.drawBackground(h.RenderState.Ctx, float32(width), float32(height))
+		h.drawMenuPanel(h.RenderState.Ctx)
 		h.UI.DrawTo(h.RenderState.Ctx)
+		h.drawMenuContent(h.RenderState.Ctx)
 		var _ error = h.RenderState.Ctx.Flush(surface, nil)
 	}
 
-	h.RenderState.OnMouseMove = func(x, y float64) { h.UI.OnMouseMove(x, y) }
-	h.RenderState.OnMousePress = func(button gpucontext.MouseButton, x, y float64) { h.UI.OnMousePress(button, x, y) }
-	h.RenderState.OnMouseRelease = func(button gpucontext.MouseButton, x, y float64) { h.UI.OnMouseRelease(button, x, y) }
-	h.RenderState.OnScroll = func(deltaX, deltaY float64) { h.UI.OnScroll(deltaX, deltaY) }
+	h.RenderState.OnMouseMove = func(x, y float64) {
+		h.menu.MouseX, h.menu.MouseY = float32(x), float32(y)
+		h.moveMenu(float32(y))
+		h.UI.OnMouseMove(x, y)
+	}
+	h.RenderState.OnMousePress = func(button gpucontext.MouseButton, x, y float64) {
+		if button == gpucontext.MouseButtonLeft {
+			h.pressMenu(float32(x), float32(y))
+		}
+		h.UI.OnMousePress(button, x, y)
+	}
+	h.RenderState.OnMouseRelease = func(button gpucontext.MouseButton, x, y float64) {
+		h.UI.OnMouseRelease(button, x, y)
+		if button == gpucontext.MouseButtonLeft {
+			h.releaseMenu(float32(x), float32(y))
+		}
+	}
+	h.RenderState.OnScroll = func(deltaX, deltaY float64) {
+		h.scrollMenu(float32(deltaY))
+		h.UI.OnScroll(deltaX, deltaY)
+	}
 	h.RenderState.OnKeyPress = func(key gpucontext.Key, mods gpucontext.Modifiers) { h.UI.OnKeyPress(key, mods) }
 	h.RenderState.OnKeyRelease = func(key gpucontext.Key, mods gpucontext.Modifiers) { h.UI.OnKeyRelease(key, mods) }
 	h.RenderState.OnTextInput = func(text string) { h.UI.OnTextInput(text) }

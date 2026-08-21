@@ -30,7 +30,7 @@ var MobRock *MobRender = newMob(configs.MobID_Rock, func(ctx *gctx2d.Context, ti
 	fillStroke(ctx, DamageFlashColor(rockColor, damageFlashCurrent), 4/scale)
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0.4, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
 })
 
 var MobBoulder *MobRender = newMob(configs.MobID_Boulder, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -55,7 +55,7 @@ var MobBoulder *MobRender = newMob(configs.MobID_Boulder, func(ctx *gctx2d.Conte
 	fillStroke(ctx, DamageFlashColor(rockColor, damageFlashCurrent), 4/scale)
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0.8, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
 })
 
 var ladybugRed, ladybugBlack = gctx2d.RGBA(1, 4.0/255.0, 3.0/255.0, 1), gctx2d.RGBA(0.05, 0.05, 0.05, 1)
@@ -121,7 +121,7 @@ var MobLadybug *MobRender = newMob(configs.MobID_Ladybug, func(ctx *gctx2d.Conte
 	ctx.Restore()
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0, width/2, height/2, width/2.3, 0, 0, 1, 0, false)
 })
 
 var MobBee *MobRender = newMob(configs.MobID_Bee, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -241,60 +241,11 @@ var MobBabyAnt *MobRender = newMob(configs.MobID_BabyAnt, func(ctx *gctx2d.Conte
 	ctx.Restore()
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0, width/2, height/2, width/4, 0, 0, 1, 0, false)
 })
 
 var antWing = render.HexToColor("#EEEEEE")
 var MobWorkerAnt *MobRender = newMob(configs.MobID_WorkerAnt, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
-	/*// mob: Worker Ant (registry 7)
-	// source: live gameplay mob table[207]; coordinates are renderer-local
-	// original bounds: (-21.5, -17.5) to (33.5, 17.5)
-	// normalized with center (6, 0) and scale 0.036364
-	function draw(ctx) {
-	  const baseTransform = ctx.getTransform();
-	  const normalization = [0.036364, 0, 0, 0.036364, -0.218182, 0];
-	  const setLocalTransform = ([a, b, c, d, e, f]) => ctx.setTransform(
-	    baseTransform.a * a + baseTransform.c * b,
-	    baseTransform.b * a + baseTransform.d * b,
-	    baseTransform.a * c + baseTransform.c * d,
-	    baseTransform.b * c + baseTransform.d * d,
-	    baseTransform.a * e + baseTransform.c * f + baseTransform.e,
-	    baseTransform.b * e + baseTransform.d * f + baseTransform.f,
-	  );
-	  const setObjectTransform = (x, y, width, height, rotation) => {
-	    setLocalTransform(normalization);
-	    ctx.translate(x, y);
-	    ctx.rotate(rotation);
-	    ctx.scale(width, height);
-	  };
-	  setLocalTransform(normalization);
-	  ctx.lineWidth = 7;
-	  ctx.lineJoin = "round";
-	  ctx.lineCap = "round";
-	  ctx.fillStyle = "#555555";
-	  ctx.strokeStyle = "#454545";
-	  ctx.beginPath();
-	  ctx.arc(-8, 0, 10, 0, TAU, false);
-	  ctx.fill();
-	  ctx.stroke();
-	  ctx.strokeStyle = "#292929";
-	  ctx.beginPath();
-	  setObjectTransform(8, 0, 1, 1, 0);
-	  ctx.moveTo(0, -7);
-	  ctx.quadraticCurveTo(11, -9.563633, 22, -4.563632);
-	  ctx.stroke();
-	  ctx.beginPath();
-	  ctx.moveTo(0, 7);
-	  ctx.quadraticCurveTo(11, 9.563633, 22, 4.563632);
-	  ctx.stroke();
-	  ctx.fillStyle = "#555555";
-	  ctx.strokeStyle = "#454545";
-	  ctx.beginPath();
-	  ctx.arc(0, 0, 14, 0, TAU, false);
-	  ctx.fill();
-	  ctx.stroke();
-	}*/
-
 	ctx.Save()
 	ctx.SetObjectTransform(x, y, size, rotation)
 
@@ -331,7 +282,7 @@ var MobWorkerAnt *MobRender = newMob(configs.MobID_WorkerAnt, func(ctx *gctx2d.C
 	ctx.Restore()
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0, width/2, height/2, width/6, 0, 0, 1, 0, false)
 })
 
 var MobSoldierAnt *MobRender = newMob(configs.MobID_SoldierAnt, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -393,71 +344,10 @@ var MobSoldierAnt *MobRender = newMob(configs.MobID_SoldierAnt, func(ctx *gctx2d
 	ctx.Restore()
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0, width/2, height/2, width/6, 0, 0, 1, 0, false)
 })
 
 var MobQueenAnt *MobRender = newMob(configs.MobID_QueenAnt, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
-	/*// mob: Queen Ant (registry 9)
-	// source: synthetic mob table[211]; coordinates are renderer-local
-	// renderer transforms are baked into the affected geometry and stroke widths
-	// original bounds: (-29.25, -17.862121) to (30.75, 17.862121)
-	// normalized with center (0.75, 0) and scale 0.033333
-	function draw(ctx) {
-	  const baseTransform = ctx.getTransform();
-	  const normalization = [0.033333, 0, 0, 0.033333, -0.025, 0];
-	  const setLocalTransform = ([a, b, c, d, e, f]) => ctx.setTransform(
-	    baseTransform.a * a + baseTransform.c * b,
-	    baseTransform.b * a + baseTransform.d * b,
-	    baseTransform.a * c + baseTransform.c * d,
-	    baseTransform.b * c + baseTransform.d * d,
-	    baseTransform.a * e + baseTransform.c * f + baseTransform.e,
-	    baseTransform.b * e + baseTransform.d * f + baseTransform.f,
-	  );
-	  setLocalTransform(normalization);
-	  ctx.lineCap = "round";
-	  ctx.fillStyle = "#555555";
-	  ctx.strokeStyle = "#454545";
-	  ctx.beginPath();
-	  ctx.arc(-12.5, 0, 15, 0, TAU, false);
-	  ctx.fill();
-	  ctx.lineWidth = 3.5;
-	  ctx.stroke();
-	  ctx.fillStyle = "#555555";
-	  ctx.strokeStyle = "#454545";
-	  ctx.beginPath();
-	  ctx.arc(0, 0, 12.5, 0, TAU, false);
-	  ctx.fill();
-	  ctx.stroke();
-	  ctx.save();
-	    // ctx.globalAlpha is runtime-state-dependent (raw probe value 0)
-	    ctx.fillStyle = "#EEEEEE";
-	    ctx.strokeStyle = "#EEEEEE";
-	    ctx.beginPath();
-	    ctx.ellipse(-7, -8, 15, 7, 0.314159, 0, TAU, false);
-	    ctx.fill();
-	    ctx.beginPath();
-	    ctx.ellipse(-7, 8, 15, 7, -0.314159, 0, TAU, false);
-	    ctx.fill();
-	    // ctx.globalAlpha is runtime-state-dependent (raw probe value 0)
-	  ctx.restore();
-	  ctx.strokeStyle = "#292929";
-	  ctx.beginPath();
-	  ctx.moveTo(12.5, -5.25);
-	  ctx.quadraticCurveTo(20.75, -7.5, 29, -3.75);
-	  ctx.lineWidth = 3.5;
-	  ctx.stroke();
-	  ctx.beginPath();
-	  ctx.moveTo(12.5, 5.25);
-	  ctx.quadraticCurveTo(20.75, 7.5, 29, 3.75);
-	  ctx.stroke();
-	  ctx.fillStyle = "#555555";
-	  ctx.strokeStyle = "#454545";
-	  ctx.beginPath();
-	  ctx.arc(12.5, 0, 10.5, 0, TAU, false);
-	  ctx.fill();
-	  ctx.stroke();
-	}*/
-
 	ctx.Save()
 	ctx.SetObjectTransform(x, y, size, rotation)
 
@@ -513,7 +403,7 @@ var MobQueenAnt *MobRender = newMob(configs.MobID_QueenAnt, func(ctx *gctx2d.Con
 	ctx.Restore()
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
-	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
+	self.Active(ctx, 0, 0, width/2, height/2, width/8, 0, 0, 1, 0, false)
 })
 
 var ah1, ah2, ah3 = render.HexToColor("#B58500"), render.HexToColor("#946D00"), render.HexToColor("#6B4F00")

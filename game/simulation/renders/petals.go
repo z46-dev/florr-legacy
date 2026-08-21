@@ -1,10 +1,37 @@
 package renders
 
 import (
+	"math"
+
 	"github.com/z46-dev/florr-legacy/client/render"
 	"github.com/z46-dev/florr-legacy/shared/configs"
 	"github.com/z46-dev/gctx2d"
 )
+
+var baseIconFunc IconDrawFunc = func(self *PetalRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
+	var (
+		width, height float32        = float32(canvas.Width), float32(canvas.Height)
+		cfg           *configs.Petal = configs.Petals[self.ID]
+	)
+
+	if cfg == nil || cfg.Special.Count <= 1 {
+		self.StaticGenerator(&self.baseRender, canvas, ctx)
+		return
+	}
+
+	for i := cfg.Special.Count - 1; i >= 0; i-- {
+		var (
+			angle float32 = TAU / float32(cfg.Special.Count) * float32(i)
+			dist  float32 = 0.7 * width / 2
+		)
+
+		ctx.Save()
+		ctx.SetObjectTransform(width/2+dist*float32(math.Cos(float64(angle))), height/2+dist*float32(math.Sin(float64(angle))), width/2, angle)
+		// self.StaticGenerator(&self.baseRender, canvas, ctx)
+		self.Active(ctx, 0, 1, 0, 0, 1, 0, 0, 1, 0, false)
+		ctx.Restore()
+	}
+}
 
 var PetalBasic *PetalRender = newPetal(configs.PetalID_Basic, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
 	ctx.SetFillStyle(DamageFlashColor(gctx2d.ColorWhite, damageFlashCurrent))
@@ -16,7 +43,7 @@ var PetalBasic *PetalRender = newPetal(configs.PetalID_Basic, func(ctx *gctx2d.C
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
 	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
-})
+}, baseIconFunc, 1)
 
 var PetalFast *PetalRender = PetalBasic.Clone(configs.PetalID_Fast)
 
@@ -31,7 +58,7 @@ var PetalHeavy *PetalRender = newPetal(configs.PetalID_Heavy, func(ctx *gctx2d.C
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
 	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
-})
+}, baseIconFunc, 1)
 
 var rockColor = gctx2d.RGBA(119.0/255.0, 119.0/255.0, 119.0/255.0, 1)
 var PetalRock *PetalRender = newPetal(configs.PetalID_Rock, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -40,7 +67,7 @@ var PetalRock *PetalRender = newPetal(configs.PetalID_Rock, func(ctx *gctx2d.Con
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
 	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
-})
+}, baseIconFunc, 1)
 
 var leafColor = render.HexToColor("#48b63e")
 var PetalLeaf *PetalRender = newPetal(configs.PetalID_Leaf, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -79,7 +106,7 @@ var PetalLeaf *PetalRender = newPetal(configs.PetalID_Leaf, func(ctx *gctx2d.Con
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
 	self.Active(ctx, 0, 0, width/2, height/2, width*.35, 0, 0, 1, 0, false)
-})
+}, baseIconFunc, 2)
 
 var roseColor = render.HexToColor("#f993cb")
 var PetalRose *PetalRender = newPetal(configs.PetalID_Rose, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -92,7 +119,7 @@ var PetalRose *PetalRender = newPetal(configs.PetalID_Rose, func(ctx *gctx2d.Con
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
 	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
-})
+}, baseIconFunc, 1)
 
 var fasterColor = render.HexToColor("#fdffc5")
 var PetalFaster *PetalRender = newPetal(configs.PetalID_Faster, func(ctx *gctx2d.Context, time, scale, x, y, size, rotation float32, id uint64, currentAlpha, damageFlashCurrent float32, attacking bool) {
@@ -105,7 +132,7 @@ var PetalFaster *PetalRender = newPetal(configs.PetalID_Faster, func(ctx *gctx2d
 }, func(self *baseRender, canvas *gctx2d.OffscreenCanvas, ctx *gctx2d.Context) {
 	var width, height float32 = float32(canvas.Width), float32(canvas.Height)
 	self.Active(ctx, 0, 0, width/2, height/2, width/2.2, 0, 0, 1, 0, false)
-})
+}, baseIconFunc, 1)
 
 var PetalTwin *PetalRender = PetalBasic.Clone(configs.PetalID_Twin)
 var PetalTriplet *PetalRender = PetalBasic.Clone(configs.PetalID_Triplet)

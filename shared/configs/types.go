@@ -41,14 +41,20 @@ type (
 		Delay  float64 `json:"delay"`  // The delay in milliseconds between heals
 	}
 
+	PetalPoison struct {
+		Amount                   float64 `json:"amount"`                     // The amount of poison this petal applies
+		OverDurationMilliseconds float64 `json:"over_duration_milliseconds"` // The duration in milliseconds over which the poison is applied
+	}
+
 	PetalSpecial struct {
-		Count                    int        `json:"count,omitempty"`                       // How many petals are spawned for this petal
-		ClumpSize                int        `json:"clump_size,omitempty"`                  // If there are multiple petals, how do we divide clumps up? 1 = individual, 2 = pairs, and so forth.
-		Passive                  bool       `json:"passive,omitempty"`                     // Is this petal unable to be in "attack mode"?
-		Wearable                 bool       `json:"wearable,omitempty"`                    // Is this petal wearable by the player (aka not an entity)?
-		Heal                     *PetalHeal `json:"heal,omitempty"`                        // Can this petal heal the player?
-		RotationRadiansPerSecond float64    `json:"rotation_radians_per_second,omitempty"` // How much extra rotation does this petal gift to the flower?
-		ConstantHealPerSecond    float64    `json:"constant_heal_per_second,omitempty"`    // How much constant healing does this petal provide to the flower?
+		Count                    int          `json:"count,omitempty"`                       // How many petals are spawned for this petal
+		ClumpSize                int          `json:"clump_size,omitempty"`                  // If there are multiple petals, how do we divide clumps up? 1 = individual, 2 = pairs, and so forth.
+		Passive                  bool         `json:"passive,omitempty"`                     // Is this petal unable to be in "attack mode"?
+		Wearable                 bool         `json:"wearable,omitempty"`                    // Is this petal wearable by the player (aka not an entity)?
+		Heal                     *PetalHeal   `json:"heal,omitempty"`                        // Can this petal heal the player?
+		RotationRadiansPerSecond float64      `json:"rotation_radians_per_second,omitempty"` // How much extra rotation does this petal gift to the flower?
+		ConstantHealPerSecond    float64      `json:"constant_heal_per_second,omitempty"`    // How much constant healing does this petal provide to the flower?
+		Poison                   *PetalPoison `json:"poison,omitempty"`                      // Can this petal poison enemies?
 	}
 
 	Petal struct {

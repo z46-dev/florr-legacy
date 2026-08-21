@@ -5,6 +5,7 @@ import (
 	"maps"
 	"slices"
 
+	"github.com/z46-dev/florr-legacy/client/assets"
 	"github.com/z46-dev/florr-legacy/client/render"
 	"github.com/z46-dev/florr-legacy/game/simulation/renders"
 )
@@ -20,6 +21,9 @@ func New(renderer *render.Renderer) (home *Home, err error) {
 			PossiblePetals: slices.Collect(maps.Keys(renders.Petals)),
 		},
 	}
+	home.menu.Petals = sortedPetals()
+	home.menu.Mobs = sortedMobs()
+	home.menu.Changelog = parseChangelog(assets.Changelog)
 
 	if home.RenderState, err = renderer.NewState(); err != nil {
 		home = nil

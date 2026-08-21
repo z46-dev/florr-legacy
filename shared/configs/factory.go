@@ -103,6 +103,16 @@ func (p *Petal) SetConstantHeal(healPerSecond float64) (self *Petal) {
 	return
 }
 
+func (p *Petal) SetPoison(amount, overDurationMilliseconds float64) (self *Petal) {
+	p.Special.Poison = &PetalPoison{
+		Amount:                   amount,
+		OverDurationMilliseconds: overDurationMilliseconds,
+	}
+
+	self = p
+	return
+}
+
 // ==================================================
 // ====================== Mobs ======================
 // ==================================================

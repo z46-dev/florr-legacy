@@ -413,8 +413,8 @@
                     position: {
                         x: f64[(pointers.position + 88) >>> 3],
                         y: f64[(pointers.position + 96) >>> 3],
-                    },
-                },
+                    }
+                }
             };
         };
 

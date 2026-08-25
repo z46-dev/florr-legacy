@@ -2,45 +2,32 @@ name: CI
 
 on:
   push:
+    branches:
+      - "**"
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  go:
-    name: Go repository
+  build-and-test:
+    name: Build and test
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v7
         with:
           go-version-file: go.mod
-          cache-dependency-path: go.mod
-
-      - name: Download dependencies
-        run: go mod download
-
-      - name: Run tests
-        run: go test ./...
-
-      - name: Run vet
-        run: go vet ./...
-
-      - name: Build programs without warnings
-        shell: bash
-        run: |
-          set -o pipefail
-          output_file="$(mktemp)"
-          go build ./... 2>&1 | tee "$output_file"
-          if grep -Eiq '(^|[^[:alpha:]])warn(ing)?([^[:alpha:]]|$)' "$output_file"; then
-            echo "Go build emitted a warning."
-            exit 1
-          fi
 
       - name: Install gopls
         run: go install golang.org/x/tools/gopls@latest
@@ -70,14 +57,46 @@ jobs:
       - name: Check module files
         run: go mod tidy -diff
 
-      - name: Run tests with race detector
+      - name: Check native Go correctness
+        run: go vet ./...
+
+      - name: Check WASM Go correctness
+        run: GOOS=js GOARCH=wasm go vet ./client
+
+      - name: Run Go tests with race detector
         run: go test -race ./...
 
-      - name: Install govulncheck
-        run: go install golang.org/x/vuln/cmd/govulncheck@latest
+      - name: Build programs without warnings
+        shell: bash
+        run: |
+          set -o pipefail
+          output_file="$(mktemp)"
+          go build ./... 2>&1 | tee "$output_file"
+          if grep -Eiq '(^|[^[:alpha:]])warn(ing)?([^[:alpha:]]|$)' "$output_file"; then
+            echo "Go build emitted a warning."
+            exit 1
+          fi
 
-      - name: Check vulnerabilities
-        run: govulncheck ./...
+  vulnerability-scan:
+    name: Vulnerability scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Scan Go dependencies and code
+        uses: golang/govulncheck-action@v1
+        with:
+          repo-checkout: false
+          go-version-file: go.mod
+          go-package: ./...
 
       - name: Install gosec
         run: go install github.com/securego/gosec/v2/cmd/gosec@latest
@@ -86,3 +105,35 @@ jobs:
         # Existing binary-packet narrowing, gameplay randomness, and local
         # configured paths are tested or are not security boundaries.
         run: gosec -exclude=G104,G115,G301,G302,G304,G306,G404 -exclude-generated ./...
+
+  tag:
+    name: Tag successful main build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs:
+      - build-and-test
+      - vulnerability-scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out repository history
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Create next patch tag
+        shell: bash
+        run: |
+          latest_tag="$(git tag --list | awk '/^v[0-9]+\.[0-9]+\.[0-9]+$/' | sort -V | tail -n 1)"
+          if [[ "$latest_tag" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+            next_tag="v${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.$((BASH_REMATCH[3] + 1))"
+          else
+            next_tag="v0.0.1"
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag --annotate "$next_tag" --message "Release $next_tag"
+          git push origin "$next_tag"

@@ -1,20 +1,20 @@
 module github.com/z46-dev/florr-legacy
 
-go 1.26.6
+go 1.26.7
 
 // replace github.com/z46-dev/gctx2d => ../gctx2d
 
 require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/creasty/defaults v1.8.0
-	github.com/go-playground/validator/v10 v10.30.3
+	github.com/go-playground/validator/v10 v10.30.4
 	github.com/gofiber/fiber/v3 v3.5.0
-	github.com/gogpu/gogpu v0.53.0
-	github.com/gogpu/gpucontext v0.28.0
-	github.com/gogpu/gputypes v0.5.2
-	github.com/gogpu/wgpu v0.31.6
+	github.com/gogpu/gogpu v0.54.0
+	github.com/gogpu/gpucontext v0.31.3
+	github.com/gogpu/gputypes v0.8.0
+	github.com/gogpu/wgpu v0.34.3
 	github.com/z46-dev/arctic v0.0.3
-	github.com/z46-dev/gctx2d v0.0.1
+	github.com/z46-dev/gctx2d v0.0.2
 	github.com/z46-dev/golog v0.0.0-20260324172018-d1a87bbdeb64
 	github.com/z46-dev/gosqlite v0.0.0-20260719175548-e15201acdb53
 	github.com/z46-dev/spiffy v0.0.1
@@ -32,7 +32,7 @@ require (
 	github.com/go-webgpu/webgpu v0.5.5 // indirect
 	github.com/gofiber/schema v1.8.4 // indirect
 	github.com/gofiber/utils/v2 v2.4.1 // indirect
-	github.com/gogpu/naga v0.18.0 // indirect
+	github.com/gogpu/naga v0.19.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/leodido/go-urn v1.5.0 // indirect
